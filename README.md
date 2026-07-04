@@ -1,4 +1,8 @@
-# ansible-role-docker_mysql
+# Ansible Role: Docker MySQL
+
+[![Ansible Galaxy](https://img.shields.io/badge/ansible--galaxy-realtime.docker__mysql-blue.svg?style=popout-square)](https://galaxy.ansible.com/ui/standalone/roles/realtime/docker_mysql/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![ansible-core](https://img.shields.io/badge/ansible--core-%3E%3D2.20-blue.svg)](https://github.com/ansible/ansible)
 
 Stands up a single, version-pinned MySQL instance in a Docker container.
 Built for testing/CI use: every role run destroys and recreates the
@@ -24,7 +28,7 @@ database. See `DESIGN.md` for the full design rationale and open questions.
 ## Supported Platforms
 
 - Ubuntu: jammy (22.04), noble (24.04)
-- Debian: bookworm (12)
+- Debian: bookworm (12), trixie (13)
 
 Debian 11 (bullseye) is intentionally not supported — its LTS window ends
 2026-08-31. Other OS families are out of scope for v1 — see `DESIGN.md`.
@@ -78,7 +82,7 @@ packages, so every variable is user-overridable via the normal
 ```yaml
 - hosts: ci_runners
   roles:
-    - role: ansible-role-docker_mysql
+    - role: realtime.docker_mysql
 ```
 
 ### MySQL 8.0
@@ -86,7 +90,7 @@ packages, so every variable is user-overridable via the normal
 ```yaml
 - hosts: ci_runners
   roles:
-    - role: ansible-role-docker_mysql
+    - role: realtime.docker_mysql
       vars:
         mysql_docker_version: "8.0"
 ```
@@ -96,7 +100,7 @@ packages, so every variable is user-overridable via the normal
 ```yaml
 - hosts: ci_runners
   roles:
-    - role: ansible-role-docker_mysql
+    - role: realtime.docker_mysql
       vars:
         mysql_docker_version: "8.4"
         mysql_docker_host_port: 3307
@@ -110,7 +114,7 @@ After the role completes, MySQL is reachable at
 
 Molecule scaffolding is in `molecule/default/`, using the Docker driver and
 a pytest-testinfra verifier, against Ubuntu (jammy, noble) and Debian
-(bookworm) platforms:
+(bookworm, trixie) platforms:
 
 ```bash
 pip install -r molecule/requirements.txt --break-system-packages
@@ -132,3 +136,13 @@ apply and is omitted from the test sequence in `molecule/default/molecule.yml`.
 - Custom `my.cnf` templating beyond charset/auth flags.
 
 See `DESIGN.md` for details and future considerations.
+
+## License
+
+[MIT](LICENSE)
+
+## Author Information
+
+Created in 2026 by Bob Tanner, Real Time Enterprises, Inc.
+
+Copyright (c) 2026 Bob Tanner / Real Time Enterprises, Inc.

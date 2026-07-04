@@ -13,7 +13,7 @@ galaxy_info:
     Stands up a single, version-pinned MySQL instance in a Docker container
     for testing/CI use. Always destroys and recreates the container and
     wipes the data volume on every run. Targets Ubuntu (jammy, noble) and
-    Debian (bookworm) hosts with Docker already installed.
+    Debian (bookworm, trixie) hosts with Docker already installed.
   license: MIT
   min_ansible_version: "2.20"
   issue_tracker_url: https://github.com/basictheprogram/ansible-role-docker_mysql/issues

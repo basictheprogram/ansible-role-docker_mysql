@@ -24,6 +24,13 @@ platforms:
       - /var/run/docker.sock:/var/run/docker.sock
     privileged: true
     pre_build_image: true
+  - name: instance-debian13
+    image: "geerlingguy/docker-debian13-ansible:latest"
+    command: ""
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    privileged: true
+    pre_build_image: true
 
 provisioner:
   name: ansible
@@ -34,6 +41,8 @@ provisioner:
       instance-ubuntu2404:
         mysql_docker_version: "8.4"
       instance-debian12:
+        mysql_docker_version: "8.4"
+      instance-debian13:
         mysql_docker_version: "8.4"
 
 verifier:

@@ -51,6 +51,34 @@ None of these were needed for v1 and weren't addressed in this sync
   playbook consumption (DESIGN.md Section 5, item 6) — still marked
   optional/future, not implemented.
 
+## Debian 13 (trixie) added
+
+Confirmed supported (EOL 2028-08 standard / 2030-06 LTS per
+`scripts/platform-data.json`). Added to `meta/main.yml`'s description,
+the README's Supported Platforms list, and a third Molecule platform
+(`instance-debian13`, `geerlingguy/docker-debian13-ansible:latest`).
+
+## No CI badge added
+
+README badges added: Ansible Galaxy, License, ansible-core version.
+Deliberately did **not** add a GitHub Actions CI badge (unlike sibling
+roles such as `ansible-role-docker`) because there's no
+`.github/workflows/` in this repo yet — a badge pointing at a
+nonexistent workflow would be broken. Add one once a CI workflow exists.
+
+## No `roles/realtime.docker_mysql` symlink yet
+
+README examples and the Galaxy badge now reference `realtime.docker_mysql`
+(the `namespace.role_name` from `meta/main.yml`), matching how sibling
+roles are consumed in this monorepo (e.g. `realtime.docker` symlinks to
+`git_repository/ansible-role-docker`). No equivalent
+`roles/realtime.docker_mysql -> git_repository/ansible-role-docker_mysql`
+symlink exists yet at the `ansible-playbooks/roles/` root, so local
+playbooks in this repo can't yet resolve that name — only the Molecule
+scenario's own role resolution (via the actual directory name) works
+today. Add the symlink if you want local playbooks to use the same name
+as the README documents.
+
 ## Debian 11 (bullseye) dropped
 
 Confirmed with you during this sync: bullseye's LTS window ends
