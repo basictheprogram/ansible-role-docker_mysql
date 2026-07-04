@@ -50,12 +50,45 @@
       - "{{ mysql_docker_host_port }}:{{ mysql_docker_container_port }}"
     volumes:
       - "{{ mysql_docker_volume_name }}:/var/lib/mysql"
-    env:
-      MYSQL_ROOT_PASSWORD: "{{ mysql_docker_root_password }}"
+    env: >-
+      {{
+        {
+          'MYSQL_ROOT_PASSWORD': mysql_docker_root_password,
+          'MYSQL_TCP_PORT': mysql_docker_container_port | string,
+        }
+        | combine({'MYSQL_USER': mysql_docker_user} if mysql_docker_user else {})
+        | combine({'MYSQL_PASSWORD': mysql_docker_password} if mysql_docker_password else {})
+      }}
     command:
       - "--character-set-server={{ mysql_docker_character_set }}"
       - "--collation-server={{ mysql_docker_collation }}"
-      - "--default-authentication-plugin={{ mysql_docker_default_authentication_plugin }}"
+      # --default-authentication-plugin was deprecated in MySQL 8.0.27 and
+      # removed in 8.4 (server aborts on startup with "unknown variable"
+      # if passed); 8.4+ uses --authentication-policy instead. See
+      # DESIGN.md, Section 3.
+      - >-
+        {{ '--authentication-policy=' + mysql_docker_default_authentication_plugin
+           if mysql_docker_version is version('8.4', '>=')
+           else '--default-authentication-plugin=' + mysql_docker_default_authentication_plugin }}
+    # The official mysql image ships no Dockerfile HEALTHCHECK (the
+    # maintainers declined to add one — see docker-library/mysql#196), so
+    # container.State.Health is never populated unless we define our own
+    # here. Without this, the "wait for healthy" task below times out
+    # even when MySQL starts successfully. See DESIGN.md, Section 3.
+    healthcheck:
+      test:
+        - "CMD"
+        - "mysqladmin"
+        - "ping"
+        - "-h"
+        - "127.0.0.1"
+        - "--port={{ mysql_docker_container_port }}"
+        - "-uroot"
+        - "-p{{ mysql_docker_root_password }}"
+      interval: "{{ mysql_docker_healthcheck_interval }}s"
+      timeout: "5s"
+      retries: "{{ mysql_docker_healthcheck_retries }}"
+      start_period: "{{ mysql_docker_startup_timeout }}s"
   no_log: true # avoid leaking mysql_docker_root_password in task output/logs
 
 - name: Wait for MySQL container to report healthy
@@ -66,7 +99,7 @@
     mysql_docker_container_info.container.State.Health is defined and
     mysql_docker_container_info.container.State.Health.Status == "healthy"
   retries: "{{ mysql_docker_healthcheck_retries }}"
-  delay: "{{ (mysql_docker_startup_timeout | int) // (mysql_docker_healthcheck_retries | int) }}"
+  delay: "{{ mysql_docker_healthcheck_interval }}"
   failed_when: false
 
 - name: Fail if MySQL container did not become healthy in time

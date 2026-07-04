@@ -35,15 +35,24 @@ platforms:
 provisioner:
   name: ansible
   inventory:
+    # mysql_docker_root_password has no default (see defaults/main.yml) and
+    # is normally supplied via a vault-encrypted host_vars variable. This
+    # scenario isn't a real deployment, so it's set here in plaintext as a
+    # disposable test fixture, not a real secret - matches
+    # tests/_data.py's MYSQL_ROOT_PASSWORD constant.
     host_vars:
       instance-ubuntu2204:
         mysql_docker_version: "8.4"
+        mysql_docker_root_password: "root" # ephemeral test fixture, not a real secret
       instance-ubuntu2404:
         mysql_docker_version: "8.4"
+        mysql_docker_root_password: "root" # ephemeral test fixture, not a real secret
       instance-debian12:
         mysql_docker_version: "8.4"
+        mysql_docker_root_password: "root" # ephemeral test fixture, not a real secret
       instance-debian13:
         mysql_docker_version: "8.4"
+        mysql_docker_root_password: "root" # ephemeral test fixture, not a real secret
 
 verifier:
   name: testinfra

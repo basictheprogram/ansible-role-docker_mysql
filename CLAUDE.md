@@ -113,10 +113,13 @@ Hub image tags. Key sections to read before changing behavior:
 
 Role-specific secret variable names:
 
-* `mysql_docker_root_password` — plain Ansible variable, not vaulted in
-  v1 (acceptable per DESIGN.md given the ephemeral/non-secret CI
-  context). Any task that logs or loops over this value must still use
-  `no_log: true`.
+* `mysql_docker_root_password` — **no default**, vault-required (Amended
+  2026-07, see DESIGN.md Section 3). Must be set via a vault-encrypted
+  `host_vars` variable; `tasks/preflight.yml` fails fast if it's blank.
+  Any task that touches this value must use `no_log: true`.
+* `mysql_docker_password` — password for the optional `mysql_docker_user`
+  (opt-in, blank by default). Same vaulting/`no_log` treatment as the
+  root password.
 
 ### Commit scopes
 
@@ -136,10 +139,15 @@ Role-specific subsystem scopes: `container`, `volume`, `healthcheck`,
 * Minimal config surface: rely on image defaults for `my.cnf`; only
   charset/auth overridden via env vars/command args. No custom `my.cnf`
   templating in v1.
-* Published port on host (e.g. `3306:3306`), reachable via `localhost`.
-  No custom Docker network in v1.
-* Role does NOT create application databases/users/schemas — bare MySQL
-  server with root access only.
+* Published port on host (e.g. `3306:3306`), reachable via `localhost`
+  (`mysql_docker_host`, overridable). No custom Docker network in v1.
+* Role does NOT create application databases/schemas — only a bare MySQL
+  server with root access, plus an *optional* single opt-in user
+  (`mysql_docker_user`/`mysql_docker_password`, blank by default, must be
+  set together). Amended 2026-07 — see DESIGN.md Section 3.
+* `mysql_docker_root_password` has no default and is vault-required;
+  preflight fails fast if blank. Amended 2026-07 — originally a plain,
+  non-vaulted default — see DESIGN.md Section 3.
 * Readiness gated on Docker's built-in healthcheck (`mysqladmin ping`)
   before the role completes.
 * Role assumes Docker is already installed — no `meta/main.yml` dependency
@@ -150,10 +158,11 @@ Role-specific subsystem scopes: `container`, `volume`, `healthcheck`,
 
 If a task touches one of these, leave a `# TODO(open-q):` comment:
 
-* **Production use** — if extended beyond CI: vaulted/secret-manager
-  credentials, persistent (non-wiped) volumes, backup/restore strategy,
-  possibly a non-destructive/idempotent update path instead of
-  always-recreate.
+* **Production use** — if extended beyond CI: secret-manager-based
+  credentials beyond Ansible Vault (Vault-by-HashiCorp, AWS Secrets
+  Manager, etc. — Ansible Vault itself is now handled), persistent
+  (non-wiped) volumes, backup/restore strategy, possibly a
+  non-destructive/idempotent update path instead of always-recreate.
 * **Multi-version side-by-side** — not needed now; would require fully
   parameterized per-instance naming (container, volume, host port) to run
   two instances concurrently.
@@ -188,10 +197,13 @@ commit. Stop and verify between items.
   equivalent) **before** this role — it is not a `meta/main.yml`
   dependency.
 * After the role completes, MySQL is reachable at
-  `localhost:{{ mysql_docker_host_port }}` with
-  `{{ mysql_docker_root_password }}` as the root credential.
-* This role does not create application databases, users, or schemas —
-  consuming playbooks/projects own that step.
+  `{{ mysql_docker_host }}:{{ mysql_docker_host_port }}` with
+  `{{ mysql_docker_root_password }}` as the root credential — that
+  password must come from vault-encrypted `host_vars`; there's no default.
+* This role does not create application databases or schemas. It can
+  optionally create one additional user (`mysql_docker_user`/
+  `mysql_docker_password`, opt-in) — consuming playbooks/projects still
+  own schema/grant creation.
 * Switching `mysql_docker_version` between `8.0` and `8.4` is the core
   behavior consumers rely on — every change must keep both paths healthy.
 

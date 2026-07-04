@@ -8,13 +8,29 @@ mysql_docker_image: "mysql"
 # Container naming.
 mysql_docker_container_name: "mysql-{{ mysql_docker_version }}"
 
-# Networking. Published on the host and reachable via localhost.
+# Networking. mysql_docker_host is informational (not passed to the
+# container — the image has no "host" env var); it documents/exposes where
+# downstream consumers should connect. Override in host_vars for non-default
+# topologies (e.g. a reverse proxy or non-localhost Docker host).
+mysql_docker_host: "localhost"
 mysql_docker_host_port: 3306
 mysql_docker_container_port: 3306
 
-# Auth / root credentials (plain var — acceptable for ephemeral CI context,
-# not vaulted in v1).
-mysql_docker_root_password: "root"
+# Auth / root credentials. No default on purpose — set this via a
+# vault-encrypted host_vars variable, e.g. host_vars/<host>/vault.yml:
+#   mysql_docker_root_password: !vault |
+#     $ANSIBLE_VAULT;1.1;AES256
+#     ...
+# The preflight check (tasks/preflight.yml) fails fast if it's still blank.
+mysql_docker_root_password: ""
+
+# Optional additional MySQL user, passed through to the image's MYSQL_USER/
+# MYSQL_PASSWORD env vars. Both must be set together (or both left blank,
+# the default) — set via host_vars, same as the root password. This is
+# opt-in: the role still doesn't provision application databases/schemas,
+# it only creates the user if you ask for one. See DESIGN.md, Section 3.
+mysql_docker_user: ""
+mysql_docker_password: ""
 
 # Charset/auth defaults (minimal config surface — no custom my.cnf in v1).
 mysql_docker_character_set: "utf8mb4"
@@ -33,6 +49,10 @@ mysql_docker_wipe_volume: true
 
 # Readiness. How long to wait for the container's built-in HEALTHCHECK
 # (mysqladmin ping) to report healthy before failing the role.
+# mysql_docker_healthcheck_retries and mysql_docker_healthcheck_interval
+# are the actual retry/delay used by the wait task; mysql_docker_startup_timeout
+# is the approximate total (retries * interval) shown in the failure
+# message — it's derived by default but can be overridden independently.
 mysql_docker_healthcheck_retries: 10
 mysql_docker_healthcheck_interval: 5
-mysql_docker_startup_timeout: 60
+mysql_docker_startup_timeout: "{{ (mysql_docker_healthcheck_retries | int) * (mysql_docker_healthcheck_interval | int) }}"

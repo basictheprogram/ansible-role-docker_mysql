@@ -22,13 +22,39 @@
       - mysql_docker_image is defined and mysql_docker_image | string | length > 0
       - mysql_docker_container_name is defined and mysql_docker_container_name | string | length > 0
       - mysql_docker_volume_name is defined and mysql_docker_volume_name | string | length > 0
-      - mysql_docker_root_password is defined and mysql_docker_root_password | string | length > 0
+      - mysql_docker_host is defined and mysql_docker_host | string | length > 0
     quiet: true
     fail_msg: >-
       mysql_docker_version, mysql_docker_image, mysql_docker_container_name,
-      mysql_docker_volume_name, and mysql_docker_root_password must all be
-      defined and non-empty. Check defaults/main.yml overrides.
+      mysql_docker_volume_name, and mysql_docker_host must all be defined
+      and non-empty. Check defaults/main.yml overrides.
+
+- name: Assert mysql_docker_root_password is set
+  ansible.builtin.assert:
+    that:
+      - mysql_docker_root_password is defined
+      - mysql_docker_root_password | string | length > 0
+    quiet: true
+    fail_msg: >-
+      mysql_docker_root_password is blank. This role has no default root
+      password - set it via a vault-encrypted host_vars variable, e.g.
+      host_vars/<host>/vault.yml:
+        mysql_docker_root_password: !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          ...
+      then run the playbook with --ask-vault-pass or a vault password file.
   no_log: true # mysql_docker_root_password is evaluated in this assertion
+
+- name: Assert mysql_docker_user and mysql_docker_password are set together
+  ansible.builtin.assert:
+    that:
+      - (mysql_docker_user | default('') | length > 0) == (mysql_docker_password | default('') | length > 0)
+    quiet: true
+    fail_msg: >-
+      mysql_docker_user and mysql_docker_password must both be set or both
+      left blank - the MySQL image requires both to create the additional
+      user.
+  no_log: true # mysql_docker_password is evaluated in this assertion
 
 - name: Assert host/container ports are valid
   ansible.builtin.assert:
