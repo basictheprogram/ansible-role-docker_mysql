@@ -1,0 +1,80 @@
+---
+# ansible-role-docker_mysql
+#
+# Stands up a single, version-pinned MySQL instance in a Docker container for
+# testing/CI use. Always destroys and recreates the container and wipes the
+# data volume on every run — see DESIGN.md for the rationale.
+
+- name: Run preflight assertions
+  ansible.builtin.include_tasks: preflight.yml
+  tags: preflight
+
+- name: Verify Docker is available on the host
+  ansible.builtin.command: docker info
+  register: mysql_docker_docker_check
+  changed_when: false
+  failed_when: false
+
+- name: Fail with a clear message if Docker is not available
+  ansible.builtin.fail:
+    msg: >-
+      Docker does not appear to be installed/running on this host. This role
+      does not install Docker itself — run ansible-role-docker (or
+      equivalent) beforehand.
+  when: mysql_docker_docker_check.rc != 0
+
+- name: Remove any existing MySQL container (always-recreate)
+  community.docker.docker_container:
+    name: "{{ mysql_docker_container_name }}"
+    state: absent
+  when: mysql_docker_recreate | bool
+
+- name: Remove existing MySQL data volume (always-wipe)
+  community.docker.docker_volume:
+    name: "{{ mysql_docker_volume_name }}"
+    state: absent
+  when: mysql_docker_wipe_volume | bool
+
+- name: Create fresh MySQL data volume
+  community.docker.docker_volume:
+    name: "{{ mysql_docker_volume_name }}"
+    state: present
+
+- name: Run MySQL container
+  community.docker.docker_container:
+    name: "{{ mysql_docker_container_name }}"
+    image: "{{ mysql_docker_image }}:{{ mysql_docker_version }}"
+    state: started
+    restart_policy: "{{ mysql_docker_restart_policy }}"
+    published_ports:
+      - "{{ mysql_docker_host_port }}:{{ mysql_docker_container_port }}"
+    volumes:
+      - "{{ mysql_docker_volume_name }}:/var/lib/mysql"
+    env:
+      MYSQL_ROOT_PASSWORD: "{{ mysql_docker_root_password }}"
+    command:
+      - "--character-set-server={{ mysql_docker_character_set }}"
+      - "--collation-server={{ mysql_docker_collation }}"
+      - "--default-authentication-plugin={{ mysql_docker_default_authentication_plugin }}"
+  no_log: true # avoid leaking mysql_docker_root_password in task output/logs
+
+- name: Wait for MySQL container to report healthy
+  community.docker.docker_container_info:
+    name: "{{ mysql_docker_container_name }}"
+  register: mysql_docker_container_info
+  until: >-
+    mysql_docker_container_info.container.State.Health is defined and
+    mysql_docker_container_info.container.State.Health.Status == "healthy"
+  retries: "{{ mysql_docker_healthcheck_retries }}"
+  delay: "{{ (mysql_docker_startup_timeout | int) // (mysql_docker_healthcheck_retries | int) }}"
+  failed_when: false
+
+- name: Fail if MySQL container did not become healthy in time
+  ansible.builtin.fail:
+    msg: >-
+      MySQL container "{{ mysql_docker_container_name }}" did not report
+      healthy within ~{{ mysql_docker_startup_timeout }} seconds. Check
+      `docker logs {{ mysql_docker_container_name }}` for details.
+  when: >-
+    mysql_docker_container_info.container.State.Health is not defined or
+    mysql_docker_container_info.container.State.Health.Status != "healthy"

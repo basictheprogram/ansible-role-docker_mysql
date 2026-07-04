@@ -1,0 +1,38 @@
+---
+# MySQL version — maps directly to the Docker Hub tag.
+mysql_docker_version: "8.4"
+
+# Image repository (allows override for mirrors/private registries later).
+mysql_docker_image: "mysql"
+
+# Container naming.
+mysql_docker_container_name: "mysql-{{ mysql_docker_version }}"
+
+# Networking. Published on the host and reachable via localhost.
+mysql_docker_host_port: 3306
+mysql_docker_container_port: 3306
+
+# Auth / root credentials (plain var — acceptable for ephemeral CI context,
+# not vaulted in v1).
+mysql_docker_root_password: "root"
+
+# Charset/auth defaults (minimal config surface — no custom my.cnf in v1).
+mysql_docker_character_set: "utf8mb4"
+mysql_docker_collation: "utf8mb4_unicode_ci"
+# Use "mysql_native_password" instead if legacy app compatibility is needed.
+mysql_docker_default_authentication_plugin: "caching_sha2_password"
+
+# Volume. Wiped and recreated on every run (see mysql_docker_wipe_volume).
+mysql_docker_volume_name: "{{ mysql_docker_container_name }}-data"
+
+# Lifecycle. This role always destroys/recreates the container and wipes the
+# volume — it is designed for ephemeral testing/CI use, not persistent data.
+mysql_docker_restart_policy: "unless-stopped"
+mysql_docker_recreate: true
+mysql_docker_wipe_volume: true
+
+# Readiness. How long to wait for the container's built-in HEALTHCHECK
+# (mysqladmin ping) to report healthy before failing the role.
+mysql_docker_healthcheck_retries: 10
+mysql_docker_healthcheck_interval: 5
+mysql_docker_startup_timeout: 60

@@ -1,0 +1,27 @@
+---
+# No dependency on ansible-role-docker: this role assumes Docker is already
+# installed/running on the host. Playbooks are responsible for running
+# ansible-role-docker (or equivalent) beforehand. See DESIGN.md, Section 3.
+dependencies: []
+
+galaxy_info:
+  role_name: docker_mysql
+  namespace: realtime
+  author: Bob Tanner
+  company: "Real Time Enterprises, Inc."
+  description: >-
+    Stands up a single, version-pinned MySQL instance in a Docker container
+    for testing/CI use. Always destroys and recreates the container and
+    wipes the data volume on every run. Targets Ubuntu (jammy, noble) and
+    Debian (bookworm) hosts with Docker already installed.
+  license: MIT
+  min_ansible_version: "2.20"
+  issue_tracker_url: https://github.com/basictheprogram/ansible-role-docker_mysql/issues
+  galaxy_tags:
+    - mysql
+    - docker
+    - database
+    - rdbms
+    - containers
+    - testing
+    - ci

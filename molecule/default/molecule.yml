@@ -1,0 +1,61 @@
+---
+driver:
+  name: docker
+
+platforms:
+  - name: instance-ubuntu2204
+    image: "geerlingguy/docker-ubuntu2204-ansible:latest"
+    command: ""
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    privileged: true
+    pre_build_image: true
+  - name: instance-ubuntu2404
+    image: "geerlingguy/docker-ubuntu2404-ansible:latest"
+    command: ""
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    privileged: true
+    pre_build_image: true
+  - name: instance-debian12
+    image: "geerlingguy/docker-debian12-ansible:latest"
+    command: ""
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    privileged: true
+    pre_build_image: true
+
+provisioner:
+  name: ansible
+  inventory:
+    host_vars:
+      instance-ubuntu2204:
+        mysql_docker_version: "8.4"
+      instance-ubuntu2404:
+        mysql_docker_version: "8.4"
+      instance-debian12:
+        mysql_docker_version: "8.4"
+
+verifier:
+  name: testinfra
+  directory: tests/
+  options:
+    v: true
+    p: "no:cacheprovider"
+
+# This role intentionally destroys/recreates the container and wipes the
+# volume on every run (see DESIGN.md, Section 3 and 6), so a standard
+# "idempotence" check (second run = no changes) does not apply. It is
+# deliberately omitted from the test sequence below.
+scenario:
+  test_sequence:
+    - dependency
+    - cleanup
+    - destroy
+    - syntax
+    - create
+    - prepare
+    - converge
+    - verify
+    - cleanup
+    - destroy

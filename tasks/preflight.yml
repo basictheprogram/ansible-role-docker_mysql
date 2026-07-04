@@ -1,0 +1,43 @@
+---
+# Preflight assertions for ansible-role-docker_mysql.
+#
+# Runs before any task that touches the managed host (Docker checks,
+# container/volume operations). Fails fast on a bad Ansible version or an
+# incomplete/invalid variable set rather than partway through a container
+# teardown.
+
+- name: Assert Ansible version meets the role's minimum
+  ansible.builtin.assert:
+    that:
+      - ansible_version.full is version('2.20', '>=')
+    quiet: true
+    fail_msg: >-
+      ansible-role-docker_mysql requires Ansible core >= 2.20; this control
+      node is running {{ ansible_version.full }}.
+
+- name: Assert required MySQL container variables are defined and non-empty
+  ansible.builtin.assert:
+    that:
+      - mysql_docker_version is defined and mysql_docker_version | string | length > 0
+      - mysql_docker_image is defined and mysql_docker_image | string | length > 0
+      - mysql_docker_container_name is defined and mysql_docker_container_name | string | length > 0
+      - mysql_docker_volume_name is defined and mysql_docker_volume_name | string | length > 0
+      - mysql_docker_root_password is defined and mysql_docker_root_password | string | length > 0
+    quiet: true
+    fail_msg: >-
+      mysql_docker_version, mysql_docker_image, mysql_docker_container_name,
+      mysql_docker_volume_name, and mysql_docker_root_password must all be
+      defined and non-empty. Check defaults/main.yml overrides.
+  no_log: true # mysql_docker_root_password is evaluated in this assertion
+
+- name: Assert host/container ports are valid
+  ansible.builtin.assert:
+    that:
+      - mysql_docker_host_port is defined and (mysql_docker_host_port | int) > 0
+      - mysql_docker_host_port | int <= 65535
+      - mysql_docker_container_port is defined and (mysql_docker_container_port | int) > 0
+      - mysql_docker_container_port | int <= 65535
+    quiet: true
+    fail_msg: >-
+      mysql_docker_host_port and mysql_docker_container_port must be valid
+      TCP port numbers (1-65535).
