@@ -62,9 +62,19 @@ want non-default behavior.
 | `mysql_docker_restart_policy` | `"unless-stopped"` | No | Container restart policy. |
 | `mysql_docker_recreate` | `true` | No | Always destroy/recreate the container on every run. |
 | `mysql_docker_wipe_volume` | `true` | No | Always wipe the data volume on every run. |
-| `mysql_docker_healthcheck_retries` | `10` | No | Used both as the container's own `HEALTHCHECK retries` and the number of times the role polls for healthy before giving up. |
+| `mysql_docker_healthcheck_retries` | `120` | No | Used both as the container's own `HEALTHCHECK retries` and the number of times the role polls for healthy before giving up. Generous by design — see note below. |
 | `mysql_docker_healthcheck_interval` | `5` | No | Seconds between checks — used as both the container's `HEALTHCHECK interval` and the role's poll delay. |
-| `mysql_docker_startup_timeout` | `"{{ mysql_docker_healthcheck_retries * mysql_docker_healthcheck_interval }}"` (50 by default) | No | Derived total wait. Used as the container's `HEALTHCHECK start_period` (so slow first-time database initialization isn't counted as a failure) and shown in the failure message. Can be overridden independently of the two vars above. |
+| `mysql_docker_startup_timeout` | `"{{ mysql_docker_healthcheck_retries * mysql_docker_healthcheck_interval }}"` (600 by default) | No | Derived total wait. Used as the container's `HEALTHCHECK start_period` (so slow first-time database initialization isn't counted as a failure) and shown in the failure message. Can be overridden independently of the two vars above. |
+
+Because this role always wipes the volume and reinitializes MySQL from
+scratch, `--initialize` time varies a lot in practice — two consecutive
+runs on the same host were observed taking ~34 seconds and ~239 seconds
+respectively (disk I/O contention, not a role bug). The 10-minute default
+budget above is intentionally generous to absorb that; a healthy
+container still reports healthy as soon as it's ready; the budget only
+matters for how long a genuinely stuck container is polled before the
+role gives up. Tighten it via `host_vars` only if you've confirmed your
+host's init time is reliably fast.
 
 ## Credentials
 

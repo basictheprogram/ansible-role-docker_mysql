@@ -53,6 +53,15 @@ mysql_docker_wipe_volume: true
 # are the actual retry/delay used by the wait task; mysql_docker_startup_timeout
 # is the approximate total (retries * interval) shown in the failure
 # message — it's derived by default but can be overridden independently.
-mysql_docker_healthcheck_retries: 10
+#
+# The default budget is generous (10 minutes) because this role always
+# wipes the volume and reinitializes MySQL from scratch on every run, and
+# real-world --initialize time varies far more than you'd expect: two
+# consecutive runs on the same host were observed taking ~34s and ~239s
+# respectively (disk I/O contention, not a role bug). A short default
+# here just means spurious failures on a loaded or slow-storage host —
+# only tighten it if you've confirmed your host's actual init time is
+# reliably fast.
+mysql_docker_healthcheck_retries: 120
 mysql_docker_healthcheck_interval: 5
 mysql_docker_startup_timeout: "{{ (mysql_docker_healthcheck_retries | int) * (mysql_docker_healthcheck_interval | int) }}"

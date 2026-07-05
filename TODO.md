@@ -3,6 +3,35 @@
 Items flagged during the `ansible-sync-role` session on 2026-07-04 that
 weren't resolved in this session. Nothing here was silently dropped.
 
+## Fixed: healthcheck budget was too tight for real MySQL init variance
+
+After the HEALTHCHECK fix below, you reported the role looked
+"not idempotent": re-running against an already-healthy container failed
+at the same "did not report healthy within ~50 seconds" error. Teardown/
+recreate itself wasn't the problem — the container was genuinely removed
+and recreated each time; only the wait-for-healthy step timed out. You
+provided real `docker logs` timestamps showing `--initialize` alone took
+from `01:01:39` to `01:04:57` (~3m18s) on one run, vs. ~34 seconds total
+on a previous run — a 7x variance on the same host, most likely disk I/O
+contention. Since this role wipes the volume and reinitializes from
+scratch on *every* run by design, this variance isn't a one-time cold-
+start cost, it recurs every run.
+
+Fixed by raising `mysql_docker_healthcheck_retries` from `10` to `120` in
+`defaults/main.yml` (interval unchanged at `5`s), taking the derived
+`mysql_docker_startup_timeout` from 50s to 600s (10 minutes). A healthy
+container still reports healthy as soon as it's ready — this only
+changes how long a genuinely stuck container is polled before the role
+gives up. `DESIGN.md` (new "Bug fix" callout with the real timestamps)
+and `README.md`'s Role Variables section were updated to match.
+
+Not yet done: same sandbox limitation as every other fix in this
+session — verified the Jinja render (`mysql_docker_startup_timeout`
+computes to `600`) and ansible-lint/yamllint/ruff cleanliness, but
+couldn't exercise a live container in this session. Your own environment
+already gave us the timing evidence for this fix; a real `molecule test`
+is the next verification step.
+
 ## Fixed: healthcheck never succeeded (official image has none)
 
 After the auth-plugin fix, you reported the role still failed:

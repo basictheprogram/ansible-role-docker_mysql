@@ -131,6 +131,34 @@ variables were added. The role's own wait-loop logic (poll
 `docker_container_info` until `State.Health.Status == "healthy"`) is
 unchanged — it now has something real to poll.
 
+### Bug fix (2026-07) — default healthcheck budget was too tight
+
+After the `HEALTHCHECK` fix above, a re-run on a real host (with the
+previous container already up and healthy) still failed with the same
+"did not report healthy" error. This was not a teardown/idempotency bug
+— the destroy/recreate steps (remove container, remove volume, create
+volume, run container) all completed successfully before the wait task
+timed out; a genuinely new container was created each time. Two
+consecutive `docker logs` captures on the same host showed wildly
+different `--initialize` times for that new container:
+
+    Run 1: entrypoint start to "ready for connections" — ~34 seconds
+    Run 2: entrypoint start to "ready for connections" — ~239 seconds
+           (--initialize itself took over 3 minutes of that)
+
+The default budget at the time (`mysql_docker_healthcheck_retries: 10` ×
+`mysql_docker_healthcheck_interval: 5` = 50 seconds) was tuned to the
+fast case and had no margin for real-world variance — this role wipes
+the volume and reinitializes MySQL from scratch on *every* run by
+design (see Volume lifecycle above), so this variance recurs on every
+run, not just the first. Fixed by raising the default
+`mysql_docker_healthcheck_retries` to `120` (600 seconds / 10 minutes
+total with the same 5-second interval) — generous enough to absorb the
+observed variance. This doesn't slow down the happy path: the wait loop
+still exits as soon as the container reports healthy, so a fast ~34s
+init still completes in ~34s. It only changes how long a genuinely
+stuck container is polled before the role gives up.
+
 ## 4. Variables (draft `defaults/main.yml`)
 
 ```yaml
@@ -176,8 +204,10 @@ mysql_docker_wipe_volume: true    # always wipe volume on recreate
 # derived approximate total (retries * interval), used as the
 # HEALTHCHECK's start_period and in the failure message, and can be
 # overridden independently. (Wired up 2026-07 — healthcheck_interval was
-# originally defined but unused; see Section 3.)
-mysql_docker_healthcheck_retries: 10
+# originally defined but unused; see Section 3.) retries defaults to a
+# generous 120 (600s/10min budget) because real-world --initialize time
+# varied 34s-239s across two runs on the same host — see Section 3.
+mysql_docker_healthcheck_retries: 120
 mysql_docker_healthcheck_interval: 5   # seconds between healthcheck polls
 mysql_docker_startup_timeout: "{{ mysql_docker_healthcheck_retries * mysql_docker_healthcheck_interval }}"
 ```
